@@ -1,13 +1,15 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
-@import '@fontsource-variable/geist';
+@import '@fontsource-variable/plus-jakarta-sans';
+@import '@fontsource/caveat/600.css';
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --font-heading: var(--font-sans);
-  --font-sans: 'Geist Variable', sans-serif;
+  --font-sans: 'Plus Jakarta Sans Variable', sans-serif;
+  --font-hand: 'Caveat', cursive;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,30 +51,30 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --background: #f3f6fa;
+  --foreground: #1b2230;
+  --card: #fbfcfe;
+  --card-foreground: #1b2230;
+  --popover: #fbfcfe;
+  --popover-foreground: #1b2230;
+  --primary: #2f5bea;
+  --primary-foreground: #f8fafc;
+  --secondary: #e8edf4;
+  --secondary-foreground: #1b2230;
+  --muted: #e8edf4;
+  --muted-foreground: #4a5568;
+  --accent: #e6ecf5;
+  --accent-foreground: #1b2230;
+  --destructive: #b33a4c;
+  --border: #d3dbe6;
+  --input: #9aa7bb;
+  --ring: #2f5bea;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
+  --radius: 0.875rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -126,5 +128,56 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+/* Home scene: pen strokes draw in once and the cards fade up (skipped with reduced motion). */
+.scene-title {
+  font: 700 30px var(--font-sans);
+  fill: #1b2230;
+}
+.scene-note {
+  font: 600 36px var(--font-hand);
+  fill: #1b2230;
+}
+.scene-card-title {
+  font: 700 21px var(--font-sans);
+  fill: #1b2230;
+}
+.scene-card-text {
+  font: 500 15px var(--font-sans);
+  fill: #36404f;
+}
+.scene-pen {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .scene-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: scene-draw 1s ease-out forwards;
+    animation-delay: var(--d, 0s);
+  }
+  .scene-pop {
+    opacity: 0;
+    animation: scene-pop 0.5s ease-out forwards;
+    animation-delay: var(--d, 0s);
+  }
+}
+@keyframes scene-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes scene-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
