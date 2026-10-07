@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import BoardScene from '@/components/board/BoardScene'
 import { Button } from '@/components/ui/button'
-import { createBoard } from '@/lib/api'
+import { ApiError, createBoard } from '@/lib/api'
 import { isValidBoardId } from '@/lib/boardId'
 import { createIdentity, getIdentity } from '@/lib/identity'
 
@@ -57,10 +57,12 @@ export default function HomePage() {
       const boardId = await createBoard()
       createIdentity(name.trim())
       navigate(`/board/${boardId}`)
-    } catch {
+    } catch (error) {
+      const tooMany = error instanceof ApiError && error.code === 'BOARD_LIMIT'
       setError('root.create', {
-        message:
-          'Could not create a board. Check your connection and try again.',
+        message: tooMany
+          ? 'The server has too many boards right now. Try again in a few minutes.'
+          : 'Could not create a board. Check your connection and try again.',
       })
     }
   }

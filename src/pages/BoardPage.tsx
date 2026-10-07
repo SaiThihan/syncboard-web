@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react'
-import { isAxiosError } from 'axios'
 import { useNavigate, useParams } from 'react-router'
 import BoardMessage from '@/components/board/BoardMessage'
 import { Button } from '@/components/ui/button'
-import { getBoard } from '@/lib/api'
+import { ApiError, getBoard } from '@/lib/api'
 import { isValidBoardId } from '@/lib/boardId'
 
 type Status = 'loading' | 'ready' | 'not-found' | 'error'
@@ -37,7 +36,8 @@ function BoardLoader({ boardId }: { boardId: string }) {
       .then(() => setStatus('ready'))
       .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        const missing = isAxiosError(error) && error.response?.status === 404
+        const missing =
+          error instanceof ApiError && error.code === 'BOARD_NOT_FOUND'
         setStatus(missing ? 'not-found' : 'error')
       })
     return () => controller.abort()
