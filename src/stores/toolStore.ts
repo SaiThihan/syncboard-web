@@ -6,12 +6,17 @@ interface ToolState {
   selectedId: string | null
   stroke: string
   strokeWidth: number
+  setTool: (tool: Tool) => void
+  select: (id: string | null) => void
 }
 
-// State shape only. Actions arrive with the tools feature.
-export const useToolStore = create<ToolState>()(() => ({
+export const useToolStore = create<ToolState>()((set) => ({
   tool: 'select',
   selectedId: null,
   stroke: '#111827',
   strokeWidth: 2,
+
+  // Switching tools clears the selection, so Delete can't remove a shape by accident.
+  setTool: (tool) => set({ tool, selectedId: null }),
+  select: (id) => set({ selectedId: id }),
 }))
