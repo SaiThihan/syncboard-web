@@ -7,6 +7,7 @@ interface BoardState {
   addObject: (object: DrawingObject) => void
   updateObject: (id: string, patch: ObjectPatch) => void
   deleteObject: (id: string) => void
+  setObjects: (list: DrawingObject[]) => void
 }
 
 export const useBoardStore = create<BoardState>()((set) => ({
@@ -36,5 +37,12 @@ export const useBoardStore = create<BoardState>()((set) => ({
       const objects = { ...state.objects }
       delete objects[id]
       return { objects, order: state.order.filter((x) => x !== id) }
+    }),
+
+  // Replaces everything with the server's list (in drawing order), e.g. after joining.
+  setObjects: (list) =>
+    set({
+      objects: Object.fromEntries(list.map((object) => [object.id, object])),
+      order: list.map((object) => object.id),
     }),
 }))

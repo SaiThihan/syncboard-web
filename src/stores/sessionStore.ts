@@ -5,11 +5,23 @@ interface SessionState {
   me: User | null
   boardId: string | null
   status: ConnectionStatus
+  setStatus: (status: ConnectionStatus) => void
+  setJoined: (boardId: string, me: User) => void
+  reset: () => void
 }
 
-// State shape only. Actions arrive with the session feature.
-export const useSessionStore = create<SessionState>()(() => ({
+const initial = {
   me: null,
   boardId: null,
-  status: 'idle',
+  status: 'idle' as ConnectionStatus,
+}
+
+export const useSessionStore = create<SessionState>()((set) => ({
+  ...initial,
+
+  setStatus: (status) => set({ status }),
+  // Called when the server's join reply arrives.
+  setJoined: (boardId, me) => set({ boardId, me, status: 'joined' }),
+  // Called when the user leaves the board page.
+  reset: () => set(initial),
 }))
