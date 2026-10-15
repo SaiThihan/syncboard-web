@@ -5,9 +5,7 @@ import BoardScene from '@/components/board/BoardScene'
 import { Button } from '@/components/ui/button'
 import { ApiError, createBoard } from '@/lib/api'
 import { isValidBoardId } from '@/lib/boardId'
-import { createIdentity, getIdentity } from '@/lib/identity'
-
-const NAME_MAX_LENGTH = 30
+import { createIdentity, getIdentity, NAME_MAX_LENGTH } from '@/lib/identity'
 
 interface FormValues {
   name: string

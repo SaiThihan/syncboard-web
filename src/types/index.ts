@@ -81,6 +81,7 @@ export interface BoardInfo {
 
 // Socket.IO acks
 export type ErrorCode =
+  | 'NOT_FOUND'
   | 'BOARD_NOT_FOUND'
   | 'NOT_JOINED'
   | 'ALREADY_JOINED'

@@ -4,6 +4,8 @@ import type { Identity } from '@/types'
 // so two tabs are two different users.
 const KEY = 'syncboard.identity'
 
+export const NAME_MAX_LENGTH = 30 // the same limit the API enforces
+
 export function getIdentity(): Identity | null {
   try {
     const value: unknown = JSON.parse(sessionStorage.getItem(KEY) ?? 'null')

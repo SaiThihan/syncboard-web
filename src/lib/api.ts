@@ -19,6 +19,7 @@ export class ApiError extends Error {
 
 // The codes the API puts in the body of an error reply ({ statusCode, code, message }).
 const API_CODES: readonly string[] = [
+  'NOT_FOUND',
   'BOARD_NOT_FOUND',
   'NOT_JOINED',
   'ALREADY_JOINED',
@@ -42,7 +43,7 @@ function toApiError(error: unknown): unknown {
   if (typeof code === 'string' && API_CODES.includes(code)) {
     return new ApiError(code as ErrorCode)
   }
-  // Input checking by the framework replies 400 without one of our codes.
+  // Not from our API (for example a proxy in front of it): a 400 still means bad input.
   return new ApiError(
     error.response.status === 400 ? 'VALIDATION_FAILED' : 'UNKNOWN',
   )

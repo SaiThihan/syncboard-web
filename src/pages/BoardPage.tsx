@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import BoardMessage from '@/components/board/BoardMessage'
+import NameForm from '@/components/board/NameForm'
 import { Button } from '@/components/ui/button'
 import { ApiError, getBoard } from '@/lib/api'
 import { isValidBoardId } from '@/lib/boardId'
+import { createIdentity, getIdentity } from '@/lib/identity'
 
 type Status = 'loading' | 'ready' | 'not-found' | 'error'
 
@@ -29,6 +31,7 @@ function BoardLoader({ boardId }: { boardId: string }) {
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('loading')
   const [attempt, setAttempt] = useState(0)
+  const [identity, setIdentity] = useState(getIdentity)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -86,6 +89,11 @@ function BoardLoader({ boardId }: { boardId: string }) {
         </Button>
       </BoardMessage>
     )
+  }
+
+  // Someone who opened the link directly has no name yet: ask for it on this page.
+  if (!identity) {
+    return <NameForm onSubmit={(name) => setIdentity(createIdentity(name))} />
   }
 
   // The canvas arrives in Phase 7.
