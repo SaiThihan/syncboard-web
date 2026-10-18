@@ -5,7 +5,12 @@ import NameForm from '@/components/board/NameForm'
 import { Button } from '@/components/ui/button'
 import { ApiError, getBoard } from '@/lib/api'
 import { isValidBoardId } from '@/lib/boardId'
+import { useBoardSocket } from '@/hooks/useBoardSocket'
 import { createIdentity, getIdentity } from '@/lib/identity'
+import { useBoardStore } from '@/stores/boardStore'
+import { usePresenceStore } from '@/stores/presenceStore'
+import { useSessionStore } from '@/stores/sessionStore'
+import type { Identity } from '@/types'
 
 type Status = 'loading' | 'ready' | 'not-found' | 'error'
 
@@ -96,10 +101,27 @@ function BoardLoader({ boardId }: { boardId: string }) {
     return <NameForm onSubmit={(name) => setIdentity(createIdentity(name))} />
   }
 
-  // The canvas arrives in Phase 7.
+  return <JoinedBoard boardId={boardId} identity={identity} />
+}
+
+// Joins the board and shows how it is going. The canvas replaces this text next.
+function JoinedBoard({
+  boardId,
+  identity,
+}: {
+  boardId: string
+  identity: Identity
+}) {
+  useBoardSocket(boardId, identity)
+  const status = useSessionStore((s) => s.status)
+  const shapes = useBoardStore((s) => s.order.length)
+  const users = usePresenceStore((s) => Object.keys(s.users).length)
+
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
-      <p className="text-muted-foreground">Board {boardId}</p>
+      <p className="text-muted-foreground">
+        Board {boardId}: {status}, {shapes} shapes, {users} users
+      </p>
     </main>
   )
 }
