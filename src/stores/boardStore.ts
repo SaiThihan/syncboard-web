@@ -6,6 +6,7 @@ interface BoardState {
   order: string[] // z-order, bottom to top
   addObject: (object: DrawingObject) => void
   updateObject: (id: string, patch: ObjectPatch) => void
+  applyUpdate: (id: string, patch: ObjectPatch, version: number) => void
   deleteObject: (id: string) => void
   setObjects: (list: DrawingObject[]) => void
 }
@@ -29,6 +30,17 @@ export const useBoardStore = create<BoardState>()((set) => ({
       const object = state.objects[id]
       if (!object) return state
       return { objects: { ...state.objects, [id]: { ...object, ...patch } } }
+    }),
+
+  // For a change that came from the server. Applied only if its version is newer than
+  // ours, so a repeated or late message changes nothing.
+  applyUpdate: (id, patch, version) =>
+    set((state) => {
+      const object = state.objects[id]
+      if (!object || version <= object.version) return state
+      return {
+        objects: { ...state.objects, [id]: { ...object, ...patch, version } },
+      }
     }),
 
   deleteObject: (id) =>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { renderBoard } from '@/canvas/render'
-import { createSelectTool } from '@/canvas/selectTool'
+import { createSelectTool, type MoveChange } from '@/canvas/selectTool'
 import {
   createArrowTool,
   createCircleTool,
@@ -10,13 +10,14 @@ import {
 import { commitText, FONT_SIZE, TEXT_MAX_LENGTH } from '@/canvas/textTool'
 import { useBoardStore } from '@/stores/boardStore'
 import { useToolStore } from '@/stores/toolStore'
-import type { NewObject, ObjectPatch, Point } from '@/types'
+import type { DrawingObject, NewObject, Point } from '@/types'
 
 interface Props {
   // Called when the user finishes a change, so the caller can tell the server.
   onObjectCreated?: (shape: NewObject) => void
-  onObjectMoved?: (change: { id: string; patch: ObjectPatch }) => void
-  onObjectDeleted?: (id: string) => void
+  onObjectMoved?: (change: MoveChange) => void
+  // The whole shape, so a failed delete can put it back.
+  onObjectDeleted?: (shape: DrawingObject) => void
 }
 
 // The text tool has no drag, so it is not here: a click opens a text box instead.
@@ -116,20 +117,22 @@ export default function BoardCanvas({
     function onKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement) return
       if (e.key === 'Escape') {
+        selectTool.cancel()
         drawToolFor(drawTools)?.cancel()
         draw()
       }
       if (e.key === 'Delete' || e.key === 'Backspace') {
         const id = useToolStore.getState().selectedId
-        if (!id) return
+        const shape = id ? useBoardStore.getState().objects[id] : undefined
+        if (!id || !shape) return
         useBoardStore.getState().deleteObject(id)
         useToolStore.getState().select(null)
-        onObjectDeleted?.(id)
+        onObjectDeleted?.(shape)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [drawTools, draw, onObjectDeleted])
+  }, [selectTool, drawTools, draw, onObjectDeleted])
 
   // clientX/clientY count from the window, the canvas counts from its own top-left corner.
   function toCanvasPoint(e: React.PointerEvent): Point {
@@ -190,6 +193,7 @@ export default function BoardCanvas({
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={() => {
+          selectTool.cancel()
           drawToolFor(drawTools)?.cancel()
           draw()
         }}

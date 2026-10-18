@@ -3,6 +3,13 @@ import { useToolStore } from '@/stores/toolStore'
 import type { ObjectPatch, Point } from '@/types'
 import { findObjectAt } from './hitTest'
 
+// What to tell the server after a drag, and where the shape was before, for a rollback.
+export interface MoveChange {
+  id: string
+  patch: ObjectPatch
+  previous: ObjectPatch
+}
+
 interface Drag {
   id: string
   pointerStart: Point
@@ -22,6 +29,7 @@ export function createSelectTool() {
         point,
       )
       useToolStore.getState().select(shape?.id ?? null)
+      useToolStore.getState().setDragging(shape?.id ?? null)
       drag = shape
         ? {
             id: shape.id,
@@ -40,10 +48,20 @@ export function createSelectTool() {
       })
     },
 
+    // Puts the shape back where the drag started, e.g. for Escape.
+    cancel() {
+      if (drag) {
+        useBoardStore.getState().updateObject(drag.id, drag.shapeStart)
+      }
+      drag = null
+      useToolStore.getState().setDragging(null)
+    },
+
     // Returns the change to send to the server, or undefined if the shape did not move.
-    pointerUp(): { id: string; patch: ObjectPatch } | undefined {
+    pointerUp(): MoveChange | undefined {
       const finished = drag
       drag = null
+      useToolStore.getState().setDragging(null)
       if (!finished) return undefined
       const shape = useBoardStore.getState().objects[finished.id]
       if (
@@ -52,7 +70,11 @@ export function createSelectTool() {
       ) {
         return undefined
       }
-      return { id: finished.id, patch: { x: shape.x, y: shape.y } }
+      return {
+        id: finished.id,
+        patch: { x: shape.x, y: shape.y },
+        previous: finished.shapeStart,
+      }
     },
   }
 }

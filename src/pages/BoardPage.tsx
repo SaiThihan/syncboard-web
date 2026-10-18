@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import BoardMessage from '@/components/board/BoardMessage'
 import NameForm from '@/components/board/NameForm'
+import BoardCanvas from '@/components/canvas/BoardCanvas'
 import { Button } from '@/components/ui/button'
 import { ApiError, getBoard } from '@/lib/api'
 import { isValidBoardId } from '@/lib/boardId'
@@ -104,7 +105,8 @@ function BoardLoader({ boardId }: { boardId: string }) {
   return <JoinedBoard boardId={boardId} identity={identity} />
 }
 
-// Joins the board and shows how it is going. The canvas replaces this text next.
+// The board while joined: a status line (for now) above the canvas, and a notice when
+// the server refuses a change.
 function JoinedBoard({
   boardId,
   identity,
@@ -112,16 +114,43 @@ function JoinedBoard({
   boardId: string
   identity: Identity
 }) {
-  useBoardSocket(boardId, identity)
+  const [notice, setNotice] = useState<string | null>(null)
+  const { sendCreated, sendMoved, sendDeleted } = useBoardSocket(
+    boardId,
+    identity,
+    setNotice,
+  )
   const status = useSessionStore((s) => s.status)
   const shapes = useBoardStore((s) => s.order.length)
   const users = usePresenceStore((s) => Object.keys(s.users).length)
 
+  // A notice goes away by itself.
+  useEffect(() => {
+    if (!notice) return
+    const timer = setTimeout(() => setNotice(null), 4000)
+    return () => clearTimeout(timer)
+  }, [notice])
+
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <p className="text-muted-foreground">
+    <main className="flex h-dvh flex-col">
+      <p className="px-4 py-2 text-sm text-muted-foreground">
         Board {boardId}: {status}, {shapes} shapes, {users} users
       </p>
+      <div className="relative min-h-0 flex-1">
+        <BoardCanvas
+          onObjectCreated={sendCreated}
+          onObjectMoved={sendMoved}
+          onObjectDeleted={sendDeleted}
+        />
+        {notice && (
+          <p
+            role="status"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold shadow-md"
+          >
+            {notice}
+          </p>
+        )}
+      </div>
     </main>
   )
 }

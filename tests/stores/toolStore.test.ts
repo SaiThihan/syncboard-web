@@ -20,6 +20,16 @@ describe('toolStore', () => {
     expect(state().selectedId).toBeNull()
   })
 
+  it('setDragging sets and clears the dragged shape', () => {
+    expect(state().draggingId).toBeNull()
+
+    state().setDragging('r1')
+    expect(state().draggingId).toBe('r1')
+
+    state().setDragging(null)
+    expect(state().draggingId).toBeNull()
+  })
+
   it('setTool changes the tool and clears the selection', () => {
     state().select('r1')
 
