@@ -10,6 +10,7 @@ import type {
   ErrorCode,
   Identity,
   NewObject,
+  Point,
   ServerToClientEvents,
 } from '@/types'
 
@@ -73,7 +74,19 @@ export function useBoardSocket(
       if (tools.selectedId === id) tools.select(null)
     }
 
+    // People coming and going. A user with several tabs only counts as one.
+    const onJoined: ServerToClientEvents['presence:joined'] = ({ user }) =>
+      usePresenceStore.getState().addUser(user)
+    const onLeft: ServerToClientEvents['presence:left'] = ({ userId }) =>
+      usePresenceStore.getState().removeUser(userId)
+
+    const onCursor: ServerToClientEvents['cursor:moved'] = (cursor) =>
+      usePresenceStore.getState().setCursor(cursor)
+
     socket.on('connect', join)
+    socket.on('cursor:moved', onCursor)
+    socket.on('presence:joined', onJoined)
+    socket.on('presence:left', onLeft)
     socket.on('object:added', onAdded)
     socket.on('object:updated', onUpdated)
     socket.on('object:deleted', onDeleted)
@@ -85,6 +98,9 @@ export function useBoardSocket(
     return () => {
       leftPage = true
       socket.off('connect', join)
+      socket.off('cursor:moved', onCursor)
+      socket.off('presence:joined', onJoined)
+      socket.off('presence:left', onLeft)
       socket.off('object:added', onAdded)
       socket.off('object:updated', onUpdated)
       socket.off('object:deleted', onDeleted)
@@ -148,5 +164,11 @@ export function useBoardSocket(
     [onNotice],
   )
 
-  return { sendCreated, sendMoved, sendDeleted }
+  // Volatile: if the connection is down, the position is dropped instead of queued, so
+  // nobody gets a burst of old cursor positions after a reconnect.
+  const sendCursor = useCallback((point: Point) => {
+    socket.volatile.emit('cursor:move', point)
+  }, [])
+
+  return { sendCreated, sendMoved, sendDeleted, sendCursor }
 }

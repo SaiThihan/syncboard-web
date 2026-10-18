@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { renderBoard } from '@/canvas/render'
 import { createSelectTool, type MoveChange } from '@/canvas/selectTool'
 import {
@@ -8,9 +8,12 @@ import {
   createRectTool,
 } from '@/canvas/shapeTools'
 import { commitText, FONT_SIZE, TEXT_MAX_LENGTH } from '@/canvas/textTool'
+import { throttle } from '@/lib/throttle'
 import { useBoardStore } from '@/stores/boardStore'
 import { useToolStore } from '@/stores/toolStore'
 import type { DrawingObject, NewObject, Point } from '@/types'
+
+const CURSOR_INTERVAL_MS = 50
 
 interface Props {
   // Called when the user finishes a change, so the caller can tell the server.
@@ -18,6 +21,8 @@ interface Props {
   onObjectMoved?: (change: MoveChange) => void
   // The whole shape, so a failed delete can put it back.
   onObjectDeleted?: (shape: DrawingObject) => void
+  // Where the mouse is, at most 20 times per second.
+  onCursorMove?: (point: Point) => void
 }
 
 // The text tool has no drag, so it is not here: a click opens a text box instead.
@@ -78,12 +83,20 @@ export default function BoardCanvas({
   onObjectCreated,
   onObjectMoved,
   onObjectDeleted,
+  onCursorMove,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [selectTool] = useState(createSelectTool)
   const [drawTools] = useState(createDrawTools)
   const [textBox, setTextBox] = useState<Point | null>(null)
   const tool = useToolStore((s) => s.tool)
+
+  // The mouse fires about 60 moves per second; other people only need 20.
+  const reportCursor = useMemo(
+    () => throttle((point: Point) => onCursorMove?.(point), CURSOR_INTERVAL_MS),
+    [onCursorMove],
+  )
+  useEffect(() => () => reportCursor.cancel(), [reportCursor])
 
   const draw = useCallback(() => {
     const ctx = canvasRef.current?.getContext('2d')
@@ -152,6 +165,7 @@ export default function BoardCanvas({
 
   function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
     const tool = useToolStore.getState().tool
+    reportCursor(toCanvasPoint(e))
     if (tool === 'text') return
     const point = toCanvasPoint(e)
     if (tool === 'select') selectTool.pointerMove(point)

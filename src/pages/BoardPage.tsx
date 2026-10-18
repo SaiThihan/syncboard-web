@@ -3,14 +3,13 @@ import { useNavigate, useParams } from 'react-router'
 import BoardMessage from '@/components/board/BoardMessage'
 import NameForm from '@/components/board/NameForm'
 import BoardCanvas from '@/components/canvas/BoardCanvas'
+import CursorLayer from '@/components/presence/CursorLayer'
+import PresenceBar from '@/components/presence/PresenceBar'
 import { Button } from '@/components/ui/button'
 import { ApiError, getBoard } from '@/lib/api'
 import { isValidBoardId } from '@/lib/boardId'
 import { useBoardSocket } from '@/hooks/useBoardSocket'
 import { createIdentity, getIdentity } from '@/lib/identity'
-import { useBoardStore } from '@/stores/boardStore'
-import { usePresenceStore } from '@/stores/presenceStore'
-import { useSessionStore } from '@/stores/sessionStore'
 import type { Identity } from '@/types'
 
 type Status = 'loading' | 'ready' | 'not-found' | 'error'
@@ -105,8 +104,8 @@ function BoardLoader({ boardId }: { boardId: string }) {
   return <JoinedBoard boardId={boardId} identity={identity} />
 }
 
-// The board while joined: a status line (for now) above the canvas, and a notice when
-// the server refuses a change.
+// The board while joined: the canvas fills the page, with who is here on top of it and a
+// notice when the server refuses a change.
 function JoinedBoard({
   boardId,
   identity,
@@ -115,14 +114,11 @@ function JoinedBoard({
   identity: Identity
 }) {
   const [notice, setNotice] = useState<string | null>(null)
-  const { sendCreated, sendMoved, sendDeleted } = useBoardSocket(
+  const { sendCreated, sendMoved, sendDeleted, sendCursor } = useBoardSocket(
     boardId,
     identity,
     setNotice,
   )
-  const status = useSessionStore((s) => s.status)
-  const shapes = useBoardStore((s) => s.order.length)
-  const users = usePresenceStore((s) => Object.keys(s.users).length)
 
   // A notice goes away by itself.
   useEffect(() => {
@@ -132,25 +128,25 @@ function JoinedBoard({
   }, [notice])
 
   return (
-    <main className="flex h-dvh flex-col">
-      <p className="px-4 py-2 text-sm text-muted-foreground">
-        Board {boardId}: {status}, {shapes} shapes, {users} users
-      </p>
-      <div className="relative min-h-0 flex-1">
-        <BoardCanvas
-          onObjectCreated={sendCreated}
-          onObjectMoved={sendMoved}
-          onObjectDeleted={sendDeleted}
-        />
-        {notice && (
-          <p
-            role="status"
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold shadow-md"
-          >
-            {notice}
-          </p>
-        )}
+    <main className="relative h-dvh">
+      <BoardCanvas
+        onObjectCreated={sendCreated}
+        onObjectMoved={sendMoved}
+        onObjectDeleted={sendDeleted}
+        onCursorMove={sendCursor}
+      />
+      <CursorLayer />
+      <div className="absolute right-4 top-4 z-10">
+        <PresenceBar />
       </div>
+      {notice && (
+        <p
+          role="status"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold shadow-md"
+        >
+          {notice}
+        </p>
+      )}
     </main>
   )
 }
