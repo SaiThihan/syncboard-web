@@ -11,7 +11,7 @@ import { commitText, FONT_SIZE, TEXT_MAX_LENGTH } from '@/canvas/textTool'
 import { throttle } from '@/lib/throttle'
 import { useBoardStore } from '@/stores/boardStore'
 import { useToolStore } from '@/stores/toolStore'
-import type { DrawingObject, NewObject, Point } from '@/types'
+import type { NewObject, Point } from '@/types'
 
 const CURSOR_INTERVAL_MS = 50
 
@@ -19,8 +19,6 @@ interface Props {
   // Called when the user finishes a change, so the caller can tell the server.
   onObjectCreated?: (shape: NewObject) => void
   onObjectMoved?: (change: MoveChange) => void
-  // The whole shape, so a failed delete can put it back.
-  onObjectDeleted?: (shape: DrawingObject) => void
   // Where the mouse is, at most 20 times per second.
   onCursorMove?: (point: Point) => void
 }
@@ -82,7 +80,6 @@ function TextBox({
 export default function BoardCanvas({
   onObjectCreated,
   onObjectMoved,
-  onObjectDeleted,
   onCursorMove,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -125,27 +122,20 @@ export default function BoardCanvas({
     }
   }, [draw])
 
-  // Escape cancels what is being drawn. Delete removes the selected shape.
+  // Escape cancels what is being drawn or dragged. It cancels every tool, so it does not
+  // matter whether another Escape handler has already switched the tool.
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement) return
       if (e.key === 'Escape') {
         selectTool.cancel()
-        drawToolFor(drawTools)?.cancel()
+        for (const tool of Object.values(drawTools)) tool.cancel()
         draw()
-      }
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        const id = useToolStore.getState().selectedId
-        const shape = id ? useBoardStore.getState().objects[id] : undefined
-        if (!id || !shape) return
-        useBoardStore.getState().deleteObject(id)
-        useToolStore.getState().select(null)
-        onObjectDeleted?.(shape)
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [selectTool, drawTools, draw, onObjectDeleted])
+  }, [selectTool, drawTools, draw])
 
   // clientX/clientY count from the window, the canvas counts from its own top-left corner.
   function toCanvasPoint(e: React.PointerEvent): Point {

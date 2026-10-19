@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import BoardMessage from '@/components/board/BoardMessage'
 import NameForm from '@/components/board/NameForm'
+import Toolbar from '@/components/board/Toolbar'
 import BoardCanvas from '@/components/canvas/BoardCanvas'
 import CursorLayer from '@/components/presence/CursorLayer'
 import PresenceBar from '@/components/presence/PresenceBar'
@@ -10,6 +11,8 @@ import { ApiError, getBoard } from '@/lib/api'
 import { isValidBoardId } from '@/lib/boardId'
 import { useBoardSocket } from '@/hooks/useBoardSocket'
 import { createIdentity, getIdentity } from '@/lib/identity'
+import { useBoardStore } from '@/stores/boardStore'
+import { useToolStore } from '@/stores/toolStore'
 import type { Identity } from '@/types'
 
 type Status = 'loading' | 'ready' | 'not-found' | 'error'
@@ -120,6 +123,16 @@ function JoinedBoard({
     setNotice,
   )
 
+  // Removes the selected shape. The Delete button and the Delete key both use this.
+  const deleteSelected = useCallback(() => {
+    const id = useToolStore.getState().selectedId
+    const shape = id ? useBoardStore.getState().objects[id] : undefined
+    if (!id || !shape) return
+    useBoardStore.getState().deleteObject(id)
+    useToolStore.getState().select(null)
+    sendDeleted(shape)
+  }, [sendDeleted])
+
   // A notice goes away by itself.
   useEffect(() => {
     if (!notice) return
@@ -132,17 +145,19 @@ function JoinedBoard({
       <BoardCanvas
         onObjectCreated={sendCreated}
         onObjectMoved={sendMoved}
-        onObjectDeleted={sendDeleted}
         onCursorMove={sendCursor}
       />
       <CursorLayer />
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
+        <Toolbar onDelete={deleteSelected} />
+      </div>
       <div className="absolute right-4 top-4 z-10">
         <PresenceBar />
       </div>
       {notice && (
         <p
           role="status"
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold shadow-md"
+          className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold shadow-md"
         >
           {notice}
         </p>
