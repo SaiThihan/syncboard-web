@@ -9,15 +9,15 @@ describe('toolStore', () => {
   beforeEach(() => useToolStore.setState(initial, true))
 
   it('starts with the select tool and nothing selected', () => {
-    expect(state()).toMatchObject({ tool: 'select', selectedId: null })
+    expect(state()).toMatchObject({ tool: 'select', selectedIds: [] })
   })
 
-  it('select sets and clears the selected shape', () => {
-    state().select('r1')
-    expect(state().selectedId).toBe('r1')
+  it('select sets and clears the selected shapes', () => {
+    state().select(['r1', 'r2'])
+    expect(state().selectedIds).toEqual(['r1', 'r2'])
 
-    state().select(null)
-    expect(state().selectedId).toBeNull()
+    state().select([])
+    expect(state().selectedIds).toEqual([])
   })
 
   it('setDragging sets and clears the dragged shape', () => {
@@ -31,10 +31,10 @@ describe('toolStore', () => {
   })
 
   it('setTool changes the tool and clears the selection', () => {
-    state().select('r1')
+    state().select(['r1', 'r2'])
 
     state().setTool('rect')
 
-    expect(state()).toMatchObject({ tool: 'rect', selectedId: null })
+    expect(state()).toMatchObject({ tool: 'rect', selectedIds: [] })
   })
 })

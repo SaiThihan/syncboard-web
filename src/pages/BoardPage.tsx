@@ -1,7 +1,10 @@
+import { LogOut } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import BoardMessage from '@/components/board/BoardMessage'
 import NameForm from '@/components/board/NameForm'
+import ShareBar from '@/components/board/ShareBar'
+import Toasts from '@/components/board/Toasts'
 import Toolbar from '@/components/board/Toolbar'
 import BoardCanvas from '@/components/canvas/BoardCanvas'
 import CursorLayer from '@/components/presence/CursorLayer'
@@ -10,6 +13,7 @@ import { Button } from '@/components/ui/button'
 import { ApiError, getBoard } from '@/lib/api'
 import { isValidBoardId } from '@/lib/boardId'
 import { useBoardSocket } from '@/hooks/useBoardSocket'
+import { useToasts } from '@/hooks/useToasts'
 import { createIdentity, getIdentity } from '@/lib/identity'
 import { useBoardStore } from '@/stores/boardStore'
 import { useToolStore } from '@/stores/toolStore'
@@ -107,8 +111,8 @@ function BoardLoader({ boardId }: { boardId: string }) {
   return <JoinedBoard boardId={boardId} identity={identity} />
 }
 
-// The board while joined: the canvas fills the page, with who is here on top of it and a
-// notice when the server refuses a change.
+// The board while joined: the canvas fills the page, with the link and who is here on
+// top of it, the tools below, and short messages (a refused change, someone joining).
 function JoinedBoard({
   boardId,
   identity,
@@ -116,52 +120,59 @@ function JoinedBoard({
   boardId: string
   identity: Identity
 }) {
-  const [notice, setNotice] = useState<string | null>(null)
-  const { sendCreated, sendMoved, sendDeleted, sendCursor } = useBoardSocket(
+  const { toasts, notify } = useToasts()
+  const navigate = useNavigate()
+  const { sendCreated, sendChanged, sendDeleted, sendCursor } = useBoardSocket(
     boardId,
     identity,
-    setNotice,
+    notify,
   )
 
-  // Removes the selected shape. The Delete button and the Delete key both use this.
+  // Removes every selected shape. The Delete button and the Delete key both use this.
   const deleteSelected = useCallback(() => {
-    const id = useToolStore.getState().selectedId
-    const shape = id ? useBoardStore.getState().objects[id] : undefined
-    if (!id || !shape) return
-    useBoardStore.getState().deleteObject(id)
-    useToolStore.getState().select(null)
-    sendDeleted(shape)
+    const { selectedIds, select } = useToolStore.getState()
+    const { objects, deleteObject } = useBoardStore.getState()
+    const shapes = selectedIds.flatMap((id) =>
+      objects[id] ? [objects[id]] : [],
+    )
+    if (shapes.length === 0) return
+    for (const shape of shapes) {
+      deleteObject(shape.id)
+      sendDeleted(shape)
+    }
+    select([])
   }, [sendDeleted])
-
-  // A notice goes away by itself.
-  useEffect(() => {
-    if (!notice) return
-    const timer = setTimeout(() => setNotice(null), 4000)
-    return () => clearTimeout(timer)
-  }, [notice])
 
   return (
     <main className="relative h-dvh">
       <BoardCanvas
         onObjectCreated={sendCreated}
-        onObjectMoved={sendMoved}
+        onObjectChanged={sendChanged}
         onCursorMove={sendCursor}
-      />
-      <CursorLayer />
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2">
-        <Toolbar onDelete={deleteSelected} />
+      >
+        <CursorLayer />
+      </BoardCanvas>
+      <div className="absolute left-4 top-4 z-10 flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => navigate('/')}
+          aria-label="Leave board"
+          title="Leave this board and go back to the home page"
+          className="h-13 gap-2 border bg-card px-3.5 font-semibold shadow-md md:px-4"
+        >
+          <LogOut aria-hidden="true" />
+          <span className="hidden md:inline">Leave</span>
+        </Button>
+        <ShareBar boardId={boardId} notify={notify} />
       </div>
       <div className="absolute right-4 top-4 z-10">
         <PresenceBar />
       </div>
-      {notice && (
-        <p
-          role="status"
-          className="absolute bottom-20 left-1/2 -translate-x-1/2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold shadow-md"
-        >
-          {notice}
-        </p>
-      )}
+      <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
+        <Toolbar onDelete={deleteSelected} />
+      </div>
+      <Toasts toasts={toasts} />
     </main>
   )
 }

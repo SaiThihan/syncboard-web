@@ -1,4 +1,5 @@
 import type { DrawingObject } from '@/types'
+import { boundsOf, type Rect } from './bounds'
 
 const ARROW_HEAD = 12
 
@@ -76,10 +77,50 @@ function drawObject(ctx: CanvasRenderingContext2D, object: DrawingObject) {
 }
 
 // Clears the canvas and draws every object in list order (the last one ends up on top).
+// The caller may have moved the origin (for scrolling), so the clearing ignores that.
 export function renderBoard(
   ctx: CanvasRenderingContext2D,
   objects: DrawingObject[],
 ) {
+  ctx.save()
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+  ctx.restore()
   for (const object of objects) drawObject(ctx, object)
+}
+
+const SELECTION_COLOR = '#2F5BEA'
+const SELECTION_PADDING = 6
+
+// A dashed box around each selected shape.
+export function drawSelection(
+  ctx: CanvasRenderingContext2D,
+  selected: DrawingObject[],
+) {
+  ctx.save()
+  ctx.strokeStyle = SELECTION_COLOR
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([5, 4])
+  for (const object of selected) {
+    const box = boundsOf(object)
+    ctx.strokeRect(
+      box.x - SELECTION_PADDING,
+      box.y - SELECTION_PADDING,
+      box.width + SELECTION_PADDING * 2,
+      box.height + SELECTION_PADDING * 2,
+    )
+  }
+  ctx.restore()
+}
+
+// The box being dragged to select several shapes.
+export function drawMarquee(ctx: CanvasRenderingContext2D, box: Rect) {
+  ctx.save()
+  ctx.fillStyle = 'rgba(47, 91, 234, 0.08)'
+  ctx.strokeStyle = SELECTION_COLOR
+  ctx.lineWidth = 1
+  ctx.setLineDash([5, 4])
+  ctx.fillRect(box.x, box.y, box.width, box.height)
+  ctx.strokeRect(box.x, box.y, box.width, box.height)
+  ctx.restore()
 }

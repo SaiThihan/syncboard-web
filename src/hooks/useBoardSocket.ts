@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react'
-import type { MoveChange } from '@/canvas/selectTool'
 import { socket } from '@/lib/socket'
 import { useBoardStore } from '@/stores/boardStore'
 import { usePresenceStore } from '@/stores/presenceStore'
@@ -10,6 +9,7 @@ import type {
   ErrorCode,
   Identity,
   NewObject,
+  ObjectChange,
   Point,
   ServerToClientEvents,
 } from '@/types'
@@ -71,14 +71,24 @@ export function useBoardSocket(
     const onDeleted: ServerToClientEvents['object:deleted'] = ({ id }) => {
       useBoardStore.getState().deleteObject(id)
       const tools = useToolStore.getState()
-      if (tools.selectedId === id) tools.select(null)
+      if (tools.selectedIds.includes(id)) {
+        tools.select(tools.selectedIds.filter((selected) => selected !== id))
+      }
     }
 
     // People coming and going. A user with several tabs only counts as one.
-    const onJoined: ServerToClientEvents['presence:joined'] = ({ user }) =>
-      usePresenceStore.getState().addUser(user)
-    const onLeft: ServerToClientEvents['presence:left'] = ({ userId }) =>
-      usePresenceStore.getState().removeUser(userId)
+    const onJoined: ServerToClientEvents['presence:joined'] = ({ user }) => {
+      const presence = usePresenceStore.getState()
+      const known = user.id in presence.users
+      presence.addUser(user)
+      if (!known) onNotice(`${user.name} joined the board`)
+    }
+    const onLeft: ServerToClientEvents['presence:left'] = ({ userId }) => {
+      const presence = usePresenceStore.getState()
+      const user = presence.users[userId]
+      presence.removeUser(userId)
+      if (user) onNotice(`${user.name} left the board`)
+    }
 
     const onCursor: ServerToClientEvents['cursor:moved'] = (cursor) =>
       usePresenceStore.getState().setCursor(cursor)
@@ -112,7 +122,7 @@ export function useBoardSocket(
       usePresenceStore.getState().setUsers([])
       useSessionStore.getState().reset()
     }
-  }, [boardId, identity])
+  }, [boardId, identity, onNotice])
 
   const sendCreated = useCallback(
     (shape: NewObject) => {
@@ -129,8 +139,8 @@ export function useBoardSocket(
     [onNotice],
   )
 
-  const sendMoved = useCallback(
-    ({ id, patch, previous }: MoveChange) => {
+  const sendChanged = useCallback(
+    ({ id, patch, previous }: ObjectChange) => {
       const waiting = inFlight.current
       waiting.set(id, (waiting.get(id) ?? 0) + 1)
       socket.emit('object:update', { id, patch }, (res) => {
@@ -145,7 +155,7 @@ export function useBoardSocket(
           board.deleteObject(id) // someone deleted it meanwhile
         } else {
           board.updateObject(id, previous) // rollback
-          onNotice(noticeFor(res.error.code, 'move that shape'))
+          onNotice(noticeFor(res.error.code, 'change that shape'))
         }
       })
     },
@@ -170,5 +180,5 @@ export function useBoardSocket(
     socket.volatile.emit('cursor:move', point)
   }, [])
 
-  return { sendCreated, sendMoved, sendDeleted, sendCursor }
+  return { sendCreated, sendChanged, sendDeleted, sendCursor }
 }

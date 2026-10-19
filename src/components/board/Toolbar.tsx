@@ -28,7 +28,7 @@ const buttonClass =
 // Delete removes the selected shape, and Escape goes back to the Select tool.
 export default function Toolbar({ onDelete }: { onDelete: () => void }) {
   const tool = useToolStore((s) => s.tool)
-  const selectedId = useToolStore((s) => s.selectedId)
+  const selectedCount = useToolStore((s) => s.selectedIds.length)
   const setTool = useToolStore((s) => s.setTool)
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function Toolbar({ onDelete }: { onDelete: () => void }) {
         e.preventDefault()
         onDelete()
       } else if (e.key === 'Escape') {
-        tools.select(null)
+        tools.select([])
         if (tools.tool !== 'select') tools.setTool('select')
       }
     }
@@ -76,8 +76,12 @@ export default function Toolbar({ onDelete }: { onDelete: () => void }) {
       <button
         type="button"
         onClick={onDelete}
-        disabled={selectedId === null}
-        aria-label="Delete selected object"
+        disabled={selectedCount === 0}
+        aria-label={
+          selectedCount > 1
+            ? `Delete ${selectedCount} selected objects`
+            : 'Delete selected object'
+        }
         title="Delete  Del"
         className={buttonClass}
       >

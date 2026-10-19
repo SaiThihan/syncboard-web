@@ -1,7 +1,7 @@
 import { getIdentity } from '@/lib/identity'
 import { useBoardStore } from '@/stores/boardStore'
 import { useToolStore } from '@/stores/toolStore'
-import type { NewObject, Point } from '@/types'
+import type { NewObject, ObjectChange, Point } from '@/types'
 
 type NewText = Extract<NewObject, { type: 'text' }>
 
@@ -30,4 +30,20 @@ export function commitText(point: Point, text: string): NewText | undefined {
   // version 0 until the server confirms and gives it version 1
   useBoardStore.getState().addObject({ ...shape, authorId: me.id, version: 0 })
   return shape
+}
+
+// Changes the words of a text shape that is already on the board. Returns the change to
+// send to the server, or undefined when there is nothing to send (empty or the same).
+export function commitTextEdit(
+  id: string,
+  text: string,
+): ObjectChange | undefined {
+  const board = useBoardStore.getState()
+  const shape = board.objects[id]
+  const trimmed = text.trim().slice(0, TEXT_MAX_LENGTH)
+  if (!shape || shape.type !== 'text') return undefined
+  if (trimmed === '' || trimmed === shape.text) return undefined
+
+  board.updateObject(id, { text: trimmed })
+  return { id, patch: { text: trimmed }, previous: { text: shape.text } }
 }

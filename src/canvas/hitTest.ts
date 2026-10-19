@@ -1,9 +1,8 @@
 import type { DrawingObject, Point } from '@/types'
+import { boundsOf, type Rect } from './bounds'
 
 // How far from a line (arrow, pen) a click still counts as touching it.
 const LINE_TOLERANCE = 6
-// Text width is guessed, because measuring it needs a canvas.
-const TEXT_CHAR_WIDTH = 0.6 // ponytail: guess, use ctx.measureText if text selection feels off
 
 function distanceToSegment(p: Point, a: Point, b: Point): number {
   const dx = b.x - a.x
@@ -20,14 +19,13 @@ function distanceToSegment(p: Point, a: Point, b: Point): number {
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy))
 }
 
-function insideBox(
-  p: Point,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-): boolean {
-  return p.x >= x && p.x <= x + width && p.y >= y && p.y <= y + height
+function insideBox(p: Point, box: Rect): boolean {
+  return (
+    p.x >= box.x &&
+    p.x <= box.x + box.width &&
+    p.y >= box.y &&
+    p.y <= box.y + box.height
+  )
 }
 
 // Is the point (in canvas coordinates) on this shape?
@@ -36,7 +34,8 @@ export function hitTest(object: DrawingObject, p: Point): boolean {
 
   switch (object.type) {
     case 'rect':
-      return insideBox(p, object.x, object.y, object.width, object.height)
+    case 'text':
+      return insideBox(p, boundsOf(object))
 
     case 'circle': {
       const rx = object.width / 2
@@ -68,15 +67,6 @@ export function hitTest(object: DrawingObject, p: Point): boolean {
         (q, i) => i > 0 && distanceToSegment(p, points[i - 1], q) <= reach,
       )
     }
-
-    case 'text':
-      return insideBox(
-        p,
-        object.x,
-        object.y,
-        object.text.length * object.fontSize * TEXT_CHAR_WIDTH,
-        object.fontSize,
-      )
   }
 }
 

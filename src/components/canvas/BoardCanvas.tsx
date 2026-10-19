@@ -1,26 +1,47 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { renderBoard } from '@/canvas/render'
-import { createSelectTool, type MoveChange } from '@/canvas/selectTool'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
+import { drawMarquee, drawSelection, renderBoard } from '@/canvas/render'
+import { findObjectAt } from '@/canvas/hitTest'
+import { createSelectTool } from '@/canvas/selectTool'
 import {
   createArrowTool,
   createCircleTool,
   createPenTool,
   createRectTool,
 } from '@/canvas/shapeTools'
-import { commitText, FONT_SIZE, TEXT_MAX_LENGTH } from '@/canvas/textTool'
+import {
+  commitText,
+  commitTextEdit,
+  FONT_SIZE,
+  TEXT_MAX_LENGTH,
+} from '@/canvas/textTool'
 import { throttle } from '@/lib/throttle'
 import { useBoardStore } from '@/stores/boardStore'
 import { useToolStore } from '@/stores/toolStore'
-import type { NewObject, Point } from '@/types'
+import type { NewObject, ObjectChange, Point } from '@/types'
 
 const CURSOR_INTERVAL_MS = 50
+// The board is this big. A smaller window shows part of it and scrolls.
+const BOARD_WIDTH = 3000
+const BOARD_HEIGHT = 2000
+// The dot grid from the design: a dot every 24 pixels.
+const DOTS =
+  'radial-gradient(circle at 2px 2px, #C5CEDB 1.2px, transparent 1.7px)'
 
 interface Props {
   // Called when the user finishes a change, so the caller can tell the server.
   onObjectCreated?: (shape: NewObject) => void
-  onObjectMoved?: (change: MoveChange) => void
+  onObjectChanged?: (change: ObjectChange) => void
   // Where the mouse is, at most 20 times per second.
   onCursorMove?: (point: Point) => void
+  // Drawn on top of the board and scrolling with it, for example other people's cursors.
+  children?: ReactNode
 }
 
 // The text tool has no drag, so it is not here: a click opens a text box instead.
@@ -43,9 +64,11 @@ function drawToolFor(tools: DrawTools) {
 // Enter or clicking away confirms the text, Escape cancels.
 function TextBox({
   point,
+  initial,
   onDone,
 }: {
   point: Point
+  initial: string
   onDone: (text: string | null) => void
 }) {
   const finished = useRef(false)
@@ -58,7 +81,9 @@ function TextBox({
     <input
       autoFocus
       aria-label="Text"
+      defaultValue={initial}
       maxLength={TEXT_MAX_LENGTH}
+      onFocus={(e) => e.currentTarget.select()}
       onKeyDown={(e) => {
         if (e.key === 'Enter') finish(e.currentTarget.value)
         if (e.key === 'Escape') finish(null)
@@ -75,17 +100,29 @@ function TextBox({
   )
 }
 
+// A text box that is open: for new text (no id), or for changing a text shape.
+interface TextEditor {
+  point: Point
+  id?: string
+  text: string
+}
+
 // The drawing area. It sends mouse events to the tool picked in toolStore and redraws
 // the board from boardStore. Mouse positions are converted to canvas coordinates first.
 export default function BoardCanvas({
   onObjectCreated,
-  onObjectMoved,
+  onObjectChanged,
   onCursorMove,
+  children,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
   const [selectTool] = useState(createSelectTool)
   const [drawTools] = useState(createDrawTools)
-  const [textBox, setTextBox] = useState<Point | null>(null)
+  const [textBox, setTextBox] = useState<TextEditor | null>(null)
+  // The shape whose words are being changed is not drawn, the text box shows them.
+  const editingId = useRef<string | null>(null)
   const tool = useToolStore((s) => s.tool)
 
   // The mouse fires about 60 moves per second; other people only need 20.
@@ -95,15 +132,39 @@ export default function BoardCanvas({
   )
   useEffect(() => () => reportCursor.cancel(), [reportCursor])
 
+  // The canvas is only as big as the window. It draws the part of the board that has
+  // scrolled into view, so a big board does not need a big canvas.
   const draw = useCallback(() => {
-    const ctx = canvasRef.current?.getContext('2d')
-    if (!ctx) return
+    const canvas = canvasRef.current
+    const scroller = scrollerRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !scroller || !ctx) return
+    const { scrollLeft, scrollTop } = scroller
+    canvas.style.backgroundPosition = `${-scrollLeft}px ${-scrollTop}px`
+
     const { objects, order } = useBoardStore.getState()
-    const shapes = order.map((id) => objects[id])
+    const shapes = order
+      .filter((id) => id !== editingId.current)
+      .map((id) => objects[id])
     const preview = drawToolFor(drawTools)?.preview()
-    ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0)
+    ctx.setTransform(
+      devicePixelRatio,
+      0,
+      0,
+      devicePixelRatio,
+      -scrollLeft * devicePixelRatio,
+      -scrollTop * devicePixelRatio,
+    )
     renderBoard(ctx, preview ? [...shapes, preview] : shapes)
-  }, [drawTools])
+    drawSelection(
+      ctx,
+      useToolStore
+        .getState()
+        .selectedIds.flatMap((id) => (objects[id] ? [objects[id]] : [])),
+    )
+    const box = selectTool.selectionBox()
+    if (box) drawMarquee(ctx, box)
+  }, [drawTools, selectTool])
 
   // Redraw when the shapes change and when the canvas changes size.
   useEffect(() => {
@@ -115,12 +176,19 @@ export default function BoardCanvas({
       draw()
     })
     observer.observe(canvas)
-    const unsubscribe = useBoardStore.subscribe(draw)
+    const unsubscribeBoard = useBoardStore.subscribe(draw)
+    const unsubscribeTools = useToolStore.subscribe(draw)
     return () => {
       observer.disconnect()
-      unsubscribe()
+      unsubscribeBoard()
+      unsubscribeTools()
     }
   }, [draw])
+
+  useEffect(() => {
+    editingId.current = textBox?.id ?? null
+    draw()
+  }, [textBox, draw])
 
   // Escape cancels what is being drawn or dragged. It cancels every tool, so it does not
   // matter whether another Escape handler has already switched the tool.
@@ -137,41 +205,45 @@ export default function BoardCanvas({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [selectTool, drawTools, draw])
 
-  // clientX/clientY count from the window, the canvas counts from its own top-left corner.
-  function toCanvasPoint(e: React.PointerEvent): Point {
-    const rect = e.currentTarget.getBoundingClientRect()
+  // clientX/clientY count from the window. The board's own top-left corner moves when the
+  // board scrolls, so measuring from it gives board coordinates whatever the scroll is.
+  function toBoardPoint(e: { clientX: number; clientY: number }): Point {
+    const rect = contentRef.current!.getBoundingClientRect()
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
 
-  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    e.currentTarget.setPointerCapture(e.pointerId) // keep getting events outside the canvas
+  function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.target instanceof HTMLInputElement) return // a click inside the text box
+    e.currentTarget.setPointerCapture(e.pointerId) // keep getting events outside the board
     const tool = useToolStore.getState().tool
     if (tool === 'text') return // the text box opens on release
-    const point = toCanvasPoint(e)
+    const point = toBoardPoint(e)
     if (tool === 'select') selectTool.pointerDown(point)
     else drawTools[tool].pointerDown(point)
     draw()
   }
 
-  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+  function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.target instanceof HTMLInputElement) return
     const tool = useToolStore.getState().tool
-    reportCursor(toCanvasPoint(e))
+    const point = toBoardPoint(e)
+    reportCursor(point)
     if (tool === 'text') return
-    const point = toCanvasPoint(e)
     if (tool === 'select') selectTool.pointerMove(point)
     else drawTools[tool].pointerMove(point)
     draw()
   }
 
-  function onPointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+  function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
+    if (e.target instanceof HTMLInputElement) return
     const tool = useToolStore.getState().tool
     if (tool === 'text') {
-      setTextBox(toCanvasPoint(e))
+      setTextBox({ point: toBoardPoint(e), text: '' })
       return
     }
     if (tool === 'select') {
       const change = selectTool.pointerUp()
-      if (change) onObjectMoved?.(change)
+      if (change) onObjectChanged?.(change)
     } else {
       const shape = drawTools[tool].pointerUp()
       if (shape) onObjectCreated?.(shape)
@@ -179,10 +251,32 @@ export default function BoardCanvas({
     draw()
   }
 
+  // A double click on text, with the Select tool, opens it for changing.
+  function onDoubleClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (e.target instanceof HTMLInputElement) return
+    if (useToolStore.getState().tool !== 'select') return
+    const { objects, order } = useBoardStore.getState()
+    const shape = findObjectAt(
+      order.map((id) => objects[id]),
+      toBoardPoint(e),
+    )
+    if (shape?.type !== 'text') return
+    setTextBox({
+      point: { x: shape.x, y: shape.y },
+      id: shape.id,
+      text: shape.text,
+    })
+  }
+
   function onTextDone(text: string | null) {
     if (text !== null && textBox) {
-      const shape = commitText(textBox, text)
-      if (shape) onObjectCreated?.(shape)
+      if (textBox.id) {
+        const change = commitTextEdit(textBox.id, text)
+        if (change) onObjectChanged?.(change)
+      } else {
+        const shape = commitText(textBox.point, text)
+        if (shape) onObjectCreated?.(shape)
+      }
     }
     setTextBox(null)
   }
@@ -193,6 +287,13 @@ export default function BoardCanvas({
         ref={canvasRef}
         role="img"
         aria-label="Whiteboard"
+        style={{ backgroundImage: DOTS, backgroundSize: '24px 24px' }}
+        className="pointer-events-none absolute inset-0 block h-full w-full bg-[#F8FAFC]"
+      />
+      <div
+        ref={scrollerRef}
+        onScroll={draw}
+        onDoubleClick={onDoubleClick}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -201,15 +302,28 @@ export default function BoardCanvas({
           drawToolFor(drawTools)?.cancel()
           draw()
         }}
-        className={`block h-full w-full touch-none bg-card ${tool === 'select' ? '' : 'cursor-crosshair'}`}
-      />
-      {textBox && (
-        <TextBox
-          key={`${textBox.x},${textBox.y}`}
-          point={textBox}
-          onDone={onTextDone}
-        />
-      )}
+        className={`absolute inset-0 overflow-auto ${
+          tool === 'select'
+            ? 'touch-pan-x touch-pan-y'
+            : 'cursor-crosshair touch-none'
+        }`}
+      >
+        <div
+          ref={contentRef}
+          className="relative min-h-full min-w-full"
+          style={{ width: BOARD_WIDTH, height: BOARD_HEIGHT }}
+        >
+          {children}
+          {textBox && (
+            <TextBox
+              key={`${textBox.point.x},${textBox.point.y},${textBox.id ?? ''}`}
+              point={textBox.point}
+              initial={textBox.text}
+              onDone={onTextDone}
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }

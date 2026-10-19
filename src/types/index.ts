@@ -46,6 +46,14 @@ export type ObjectPatch = Partial<{
   fill: string
 }>
 
+// A change the user made to one shape: what to tell the server, and the old values for
+// a rollback if the server refuses it.
+export interface ObjectChange {
+  id: string
+  patch: ObjectPatch
+  previous: ObjectPatch
+}
+
 export interface Identity {
   id: string
   name: string
