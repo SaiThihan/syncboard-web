@@ -6,7 +6,13 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import { drawMarquee, drawSelection, renderBoard } from '@/canvas/render'
+import {
+  drawHandles,
+  drawMarquee,
+  drawSelection,
+  renderBoard,
+} from '@/canvas/render'
+import { handlesOf } from '@/canvas/handles'
 import { findObjectAt } from '@/canvas/hitTest'
 import { createSelectTool } from '@/canvas/selectTool'
 import {
@@ -65,10 +71,12 @@ function drawToolFor(tools: DrawTools) {
 function TextBox({
   point,
   initial,
+  fontSize,
   onDone,
 }: {
   point: Point
   initial: string
+  fontSize: number
   onDone: (text: string | null) => void
 }) {
   const finished = useRef(false)
@@ -93,7 +101,7 @@ function TextBox({
       style={{
         left: point.x,
         top: point.y,
-        fontSize: FONT_SIZE,
+        fontSize,
         lineHeight: 1,
       }}
     />
@@ -105,6 +113,7 @@ interface TextEditor {
   point: Point
   id?: string
   text: string
+  fontSize: number
 }
 
 // The drawing area. It sends mouse events to the tool picked in toolStore and redraws
@@ -162,6 +171,9 @@ export default function BoardCanvas({
         .getState()
         .selectedIds.flatMap((id) => (objects[id] ? [objects[id]] : [])),
     )
+    const { selectedIds } = useToolStore.getState()
+    const only = selectedIds.length === 1 ? objects[selectedIds[0]] : undefined
+    if (only) drawHandles(ctx, handlesOf(only))
     const box = selectTool.selectionBox()
     if (box) drawMarquee(ctx, box)
   }, [drawTools, selectTool])
@@ -238,7 +250,7 @@ export default function BoardCanvas({
     if (e.target instanceof HTMLInputElement) return
     const tool = useToolStore.getState().tool
     if (tool === 'text') {
-      setTextBox({ point: toBoardPoint(e), text: '' })
+      setTextBox({ point: toBoardPoint(e), text: '', fontSize: FONT_SIZE })
       return
     }
     if (tool === 'select') {
@@ -265,6 +277,7 @@ export default function BoardCanvas({
       point: { x: shape.x, y: shape.y },
       id: shape.id,
       text: shape.text,
+      fontSize: shape.fontSize,
     })
   }
 
@@ -319,6 +332,7 @@ export default function BoardCanvas({
               key={`${textBox.point.x},${textBox.point.y},${textBox.id ?? ''}`}
               point={textBox.point}
               initial={textBox.text}
+              fontSize={textBox.fontSize}
               onDone={onTextDone}
             />
           )}

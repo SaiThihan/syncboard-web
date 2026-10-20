@@ -1,5 +1,6 @@
 import type { DrawingObject } from '@/types'
 import { boundsOf, type Rect } from './bounds'
+import type { Handle } from './handles'
 
 const ARROW_HEAD = 12
 
@@ -122,5 +123,30 @@ export function drawMarquee(ctx: CanvasRenderingContext2D, box: Rect) {
   ctx.setLineDash([5, 4])
   ctx.fillRect(box.x, box.y, box.width, box.height)
   ctx.strokeRect(box.x, box.y, box.width, box.height)
+  ctx.restore()
+}
+
+const HANDLE_SIZE = 9
+
+// The squares you drag to resize the one selected shape.
+export function drawHandles(ctx: CanvasRenderingContext2D, handles: Handle[]) {
+  ctx.save()
+  ctx.fillStyle = '#FFFFFF'
+  ctx.strokeStyle = SELECTION_COLOR
+  ctx.lineWidth = 1.5
+  for (const h of handles) {
+    ctx.fillRect(
+      h.x - HANDLE_SIZE / 2,
+      h.y - HANDLE_SIZE / 2,
+      HANDLE_SIZE,
+      HANDLE_SIZE,
+    )
+    ctx.strokeRect(
+      h.x - HANDLE_SIZE / 2,
+      h.y - HANDLE_SIZE / 2,
+      HANDLE_SIZE,
+      HANDLE_SIZE,
+    )
+  }
   ctx.restore()
 }

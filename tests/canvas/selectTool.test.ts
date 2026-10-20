@@ -172,4 +172,79 @@ describe('select tool', () => {
       )
     })
   })
+
+  describe('resizing', () => {
+    it('drags a corner handle of the one selected shape and returns the change', () => {
+      const tool = createSelectTool()
+      tools().select(['r1'])
+
+      tool.pointerDown({ x: 300, y: 130 }) // the bottom right handle of r1
+      tool.pointerMove({ x: 400, y: 200 })
+      const change = tool.pointerUp()
+
+      expect(board().objects.r1).toMatchObject({ width: 300, height: 150 })
+      expect(change).toEqual({
+        id: 'r1',
+        patch: { x: 100, y: 50, width: 300, height: 150 },
+        previous: { x: 100, y: 50, width: 200, height: 80 },
+      })
+      expect(tools().selectedIds).toEqual(['r1'])
+      expect(tools().draggingId).toBeNull()
+    })
+
+    it('does not move the shape while a handle is dragged', () => {
+      const tool = createSelectTool()
+      tools().select(['r1'])
+
+      tool.pointerDown({ x: 300, y: 130 })
+      tool.pointerMove({ x: 500, y: 400 })
+
+      expect(board().objects.r1).toMatchObject({ x: 100, y: 50 })
+    })
+
+    it('returns nothing when the handle is pressed and released without moving', () => {
+      const tool = createSelectTool()
+      tools().select(['r1'])
+
+      tool.pointerDown({ x: 300, y: 130 })
+
+      expect(tool.pointerUp()).toBeUndefined()
+    })
+
+    it('puts the shape back on cancel', () => {
+      const tool = createSelectTool()
+      tools().select(['r1'])
+      tool.pointerDown({ x: 300, y: 130 })
+      tool.pointerMove({ x: 400, y: 200 })
+
+      tool.cancel()
+
+      expect(board().objects.r1).toMatchObject({ width: 200, height: 80 })
+      expect(tools().draggingId).toBeNull()
+      expect(tool.pointerUp()).toBeUndefined()
+    })
+
+    it('only uses handles when exactly one shape is selected', () => {
+      board().addObject({
+        id: 'r2',
+        type: 'rect',
+        authorId: 'u1',
+        version: 1,
+        x: 600,
+        y: 600,
+        width: 50,
+        height: 50,
+        stroke: '#000000',
+        strokeWidth: 2,
+      })
+      const tool = createSelectTool()
+      tools().select(['r1', 'r2'])
+
+      // (300, 130) is r1's corner: with two selected it is an ordinary press on r1
+      tool.pointerDown({ x: 300, y: 130 })
+      tool.pointerMove({ x: 400, y: 200 })
+
+      expect(board().objects.r1).toMatchObject({ x: 200, y: 120, width: 200 })
+    })
+  })
 })
