@@ -48,6 +48,9 @@ export function useBoardSocket(
         useBoardStore.getState().setObjects(board.objects)
         usePresenceStore.getState().setUsers(board.users)
         useSessionStore.getState().setJoined(boardId, me)
+        // A reply that was on its way when the connection dropped will never come, and
+        // the snapshot already shows the server's answer, so stop waiting for it.
+        inFlight.current.clear()
       })
     }
     const onDisconnect = () =>
