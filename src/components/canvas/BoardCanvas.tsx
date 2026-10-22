@@ -148,6 +148,12 @@ export default function BoardCanvas({
     const scroller = scrollerRef.current
     const ctx = canvas?.getContext('2d')
     if (!canvas || !scroller || !ctx) return
+    // One canvas pixel per screen pixel. Changing the size clears the canvas, which is fine
+    // because everything is drawn again right below.
+    const width = Math.round(canvas.clientWidth * devicePixelRatio)
+    const height = Math.round(canvas.clientHeight * devicePixelRatio)
+    if (canvas.width !== width) canvas.width = width
+    if (canvas.height !== height) canvas.height = height
     const { scrollLeft, scrollTop } = scroller
     canvas.style.backgroundPosition = `${-scrollLeft}px ${-scrollTop}px`
 
@@ -200,11 +206,8 @@ export default function BoardCanvas({
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const observer = new ResizeObserver(() => {
-      canvas.width = canvas.clientWidth * devicePixelRatio
-      canvas.height = canvas.clientHeight * devicePixelRatio
-      draw() // at once: a resize clears the canvas, so waiting would flash it empty
-    })
+    // At once, not at the next frame: after a resize the old picture would show stretched.
+    const observer = new ResizeObserver(draw)
     observer.observe(canvas)
     const unsubscribeBoard = useBoardStore.subscribe(requestDraw)
     const unsubscribeTools = useToolStore.subscribe(requestDraw)
@@ -214,6 +217,27 @@ export default function BoardCanvas({
       unsubscribeTools()
     }
   }, [draw, requestDraw])
+
+  // The window can move to a screen with a different density without changing size, which
+  // the resize observer does not notice. Watch for it and draw again with the new density.
+  useEffect(() => {
+    let query: MediaQueryList | undefined
+    let stopped = false
+    const watch = () => {
+      query = matchMedia(`(resolution: ${devicePixelRatio}dppx)`)
+      query.addEventListener('change', onChange, { once: true })
+    }
+    function onChange() {
+      if (stopped) return
+      draw()
+      watch()
+    }
+    watch()
+    return () => {
+      stopped = true
+      query?.removeEventListener('change', onChange)
+    }
+  }, [draw])
 
   useEffect(() => {
     editingId.current = textBox?.id ?? null
