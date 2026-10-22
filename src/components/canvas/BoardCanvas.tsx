@@ -240,7 +240,8 @@ export default function BoardCanvas({
     const tool = useToolStore.getState().tool
     const point = toBoardPoint(e)
     reportCursor(point)
-    if (tool === 'text') return
+    // With no button pressed nothing is being drawn or dragged, so there is nothing to redraw.
+    if (tool === 'text' || e.buttons === 0) return
     if (tool === 'select') selectTool.pointerMove(point)
     else drawTools[tool].pointerMove(point)
     draw()
