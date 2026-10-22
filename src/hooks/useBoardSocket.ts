@@ -28,6 +28,7 @@ export function useBoardSocket(
   boardId: string,
   identity: Identity,
   onNotice: (message: string) => void,
+  onBoardGone: () => void,
 ) {
   // Shapes whose own update is waiting for the server's reply, with how many.
   const inFlight = useRef(new Map<string, number>())
@@ -40,12 +41,19 @@ export function useBoardSocket(
       socket.emit('board:join', { boardId, user: identity }, (res) => {
         if (leftPage) return // the reply came after the user left
         if (!res.ok) {
-          useSessionStore.getState().setStatus('error')
+          // The board is gone (it expired, or the server restarted), which is not a
+          // connection problem.
+          if (res.error.code === 'BOARD_NOT_FOUND') onBoardGone()
+          else useSessionStore.getState().setStatus('error')
           return
         }
         // The server's list replaces everything we had, so a rejoin catches up.
         const { board, me } = res.data
         useBoardStore.getState().setObjects(board.objects)
+        // A shape that was selected may have been deleted while we were away.
+        const tools = useToolStore.getState()
+        const present = new Set(board.objects.map((object) => object.id))
+        tools.select(tools.selectedIds.filter((id) => present.has(id)))
         usePresenceStore.getState().setUsers(board.users)
         useSessionStore.getState().setJoined(boardId, me)
         // A reply that was on its way when the connection dropped will never come, and
@@ -125,7 +133,7 @@ export function useBoardSocket(
       usePresenceStore.getState().setUsers([])
       useSessionStore.getState().reset()
     }
-  }, [boardId, identity, onNotice])
+  }, [boardId, identity, onNotice, onBoardGone])
 
   const sendCreated = useCallback(
     (shape: NewObject) => {

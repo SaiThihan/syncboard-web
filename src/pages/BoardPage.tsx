@@ -39,6 +39,19 @@ export default function BoardPage() {
   return <BoardLoader key={boardId} boardId={boardId} />
 }
 
+// Shown when the board does not exist, or stopped existing while you were on it.
+function BoardGone() {
+  const navigate = useNavigate()
+  return (
+    <BoardMessage
+      title="This board is not here"
+      text="It may have expired. Boards are removed after 30 minutes with nobody on them."
+    >
+      <Button onClick={() => navigate('/')}>Back to home</Button>
+    </BoardMessage>
+  )
+}
+
 function BoardLoader({ boardId }: { boardId: string }) {
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status>('loading')
@@ -71,16 +84,7 @@ function BoardLoader({ boardId }: { boardId: string }) {
     )
   }
 
-  if (status === 'not-found') {
-    return (
-      <BoardMessage
-        title="This board is not here"
-        text="It may have expired. Boards are removed after 30 minutes with nobody on them."
-      >
-        <Button onClick={() => navigate('/')}>Back to home</Button>
-      </BoardMessage>
-    )
-  }
+  if (status === 'not-found') return <BoardGone />
 
   if (status === 'error') {
     return (
@@ -121,11 +125,14 @@ function JoinedBoard({
   identity: Identity
 }) {
   const { toasts, notify } = useToasts()
+  const [gone, setGone] = useState(false)
+  const onBoardGone = useCallback(() => setGone(true), [])
   const navigate = useNavigate()
   const { sendCreated, sendChanged, sendDeleted, sendCursor } = useBoardSocket(
     boardId,
     identity,
     notify,
+    onBoardGone,
   )
 
   // Removes every selected shape. The Delete button and the Delete key both use this.
@@ -142,6 +149,8 @@ function JoinedBoard({
     }
     select([])
   }, [sendDeleted])
+
+  if (gone) return <BoardGone />
 
   return (
     <main className="relative h-dvh">
