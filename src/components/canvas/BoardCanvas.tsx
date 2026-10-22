@@ -178,6 +178,24 @@ export default function BoardCanvas({
     if (box) drawMarquee(ctx, box)
   }, [drawTools, selectTool])
 
+  // Draw at most once per screen frame. Many changes can arrive within one frame (a burst
+  // of shapes from someone else, a fast mouse), and only the last picture is ever seen.
+  const frame = useRef(0)
+  const requestDraw = useCallback(() => {
+    if (frame.current) return
+    frame.current = requestAnimationFrame(() => {
+      frame.current = 0
+      draw()
+    })
+  }, [draw])
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(frame.current)
+      frame.current = 0 // so a draw can be asked for again (React runs effects twice in dev)
+    },
+    [],
+  )
+
   // Redraw when the shapes change and when the canvas changes size.
   useEffect(() => {
     const canvas = canvasRef.current
@@ -185,22 +203,22 @@ export default function BoardCanvas({
     const observer = new ResizeObserver(() => {
       canvas.width = canvas.clientWidth * devicePixelRatio
       canvas.height = canvas.clientHeight * devicePixelRatio
-      draw()
+      draw() // at once: a resize clears the canvas, so waiting would flash it empty
     })
     observer.observe(canvas)
-    const unsubscribeBoard = useBoardStore.subscribe(draw)
-    const unsubscribeTools = useToolStore.subscribe(draw)
+    const unsubscribeBoard = useBoardStore.subscribe(requestDraw)
+    const unsubscribeTools = useToolStore.subscribe(requestDraw)
     return () => {
       observer.disconnect()
       unsubscribeBoard()
       unsubscribeTools()
     }
-  }, [draw])
+  }, [draw, requestDraw])
 
   useEffect(() => {
     editingId.current = textBox?.id ?? null
-    draw()
-  }, [textBox, draw])
+    requestDraw()
+  }, [textBox, requestDraw])
 
   // Escape cancels what is being drawn or dragged. It cancels every tool, so it does not
   // matter whether another Escape handler has already switched the tool.
@@ -210,12 +228,12 @@ export default function BoardCanvas({
       if (e.key === 'Escape') {
         selectTool.cancel()
         for (const tool of Object.values(drawTools)) tool.cancel()
-        draw()
+        requestDraw()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [selectTool, drawTools, draw])
+  }, [selectTool, drawTools, requestDraw])
 
   // clientX/clientY count from the window. The board's own top-left corner moves when the
   // board scrolls, so measuring from it gives board coordinates whatever the scroll is.
@@ -232,7 +250,7 @@ export default function BoardCanvas({
     const point = toBoardPoint(e)
     if (tool === 'select') selectTool.pointerDown(point)
     else drawTools[tool].pointerDown(point)
-    draw()
+    requestDraw()
   }
 
   function onPointerMove(e: React.PointerEvent<HTMLDivElement>) {
@@ -244,7 +262,7 @@ export default function BoardCanvas({
     if (tool === 'text' || e.buttons === 0) return
     if (tool === 'select') selectTool.pointerMove(point)
     else drawTools[tool].pointerMove(point)
-    draw()
+    requestDraw()
   }
 
   function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
@@ -261,7 +279,7 @@ export default function BoardCanvas({
       const shape = drawTools[tool].pointerUp()
       if (shape) onObjectCreated?.(shape)
     }
-    draw()
+    requestDraw()
   }
 
   // A double click on text, with the Select tool, opens it for changing.
@@ -306,7 +324,7 @@ export default function BoardCanvas({
       />
       <div
         ref={scrollerRef}
-        onScroll={draw}
+        onScroll={requestDraw}
         onDoubleClick={onDoubleClick}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
@@ -314,7 +332,7 @@ export default function BoardCanvas({
         onPointerCancel={() => {
           selectTool.cancel()
           drawToolFor(drawTools)?.cancel()
-          draw()
+          requestDraw()
         }}
         className={`absolute inset-0 overflow-auto ${
           tool === 'select'
