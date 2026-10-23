@@ -1,5 +1,5 @@
 import { CircleAlert, Plus } from 'lucide-react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router'
 import BoardScene from '@/components/board/BoardScene'
 import { Button } from '@/components/ui/button'
@@ -29,6 +29,10 @@ function FieldError({ id, message }: { id: string; message?: string }) {
   )
 }
 
+// Accepts a pasted link or just the id: the last part of the text is the id.
+const boardIdIn = (text: string) =>
+  text.trim().split('/').filter(Boolean).pop() ?? ''
+
 export default function HomePage() {
   const navigate = useNavigate()
   const {
@@ -38,6 +42,7 @@ export default function HomePage() {
     getValues,
     setError,
     clearErrors,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     defaultValues: { name: getIdentity()?.name ?? '', join: '' },
@@ -49,6 +54,10 @@ export default function HomePage() {
       value.trim() !== '' || 'Enter a name so teammates know who is drawing.',
   })
   const joinField = register('join', { onChange: () => clearErrors('join') })
+  // With a board id typed or pasted, the person means to join, so creating is switched off.
+  const typedBoardId = isValidBoardId(
+    boardIdIn(useWatch({ control, name: 'join' })),
+  )
 
   async function onCreate({ name }: FormValues) {
     try {
@@ -65,10 +74,9 @@ export default function HomePage() {
     }
   }
 
-  // Accepts a pasted link or just the id: the last part of the text is the id.
   async function onJoin() {
     if (!(await trigger('name'))) return
-    const id = getValues('join').trim().split('/').filter(Boolean).pop() ?? ''
+    const id = boardIdIn(getValues('join'))
     if (!isValidBoardId(id)) {
       setError('join', {
         message: 'That is not a board link or an 8 character board id.',
@@ -113,6 +121,12 @@ export default function HomePage() {
           <input
             id="name"
             {...nameField}
+            // Enter would create a board. If a board id is typed, the person means to join.
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' || getValues('join').trim() === '') return
+              e.preventDefault()
+              void onJoin()
+            }}
             maxLength={NAME_MAX_LENGTH}
             autoComplete="nickname"
             placeholder="How teammates will see you"
@@ -129,12 +143,22 @@ export default function HomePage() {
 
           <Button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || typedBoardId}
+            aria-describedby={typedBoardId ? 'create-off-hint' : undefined}
             className="mt-4 h-11 w-full text-base font-semibold"
           >
             <Plus aria-hidden="true" />
             {isSubmitting ? 'Creating...' : 'Create board'}
           </Button>
+          {typedBoardId && (
+            <p
+              id="create-off-hint"
+              className="mt-1.5 text-sm text-muted-foreground"
+            >
+              You typed a board ID. Press Join board, or clear it to create a
+              new board.
+            </p>
+          )}
           <FieldError
             id="create-error"
             message={errors.root?.create?.message}
