@@ -1,4 +1,4 @@
-import { LogOut } from 'lucide-react'
+import { LogOut, WifiOff } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router'
 import BoardMessage from '@/components/board/BoardMessage'
@@ -16,6 +16,7 @@ import { useBoardSocket } from '@/hooks/useBoardSocket'
 import { useToasts } from '@/hooks/useToasts'
 import { createIdentity, getIdentity } from '@/lib/identity'
 import { useBoardStore } from '@/stores/boardStore'
+import { useSessionStore } from '@/stores/sessionStore'
 import { useToolStore } from '@/stores/toolStore'
 import type { Identity } from '@/types'
 
@@ -126,6 +127,8 @@ function JoinedBoard({
 }) {
   const { toasts, notify } = useToasts()
   const [gone, setGone] = useState(false)
+  const status = useSessionStore((s) => s.status)
+  const online = status === 'joined'
   const onBoardGone = useCallback(() => setGone(true), [])
   const navigate = useNavigate()
   const { sendCreated, sendChanged, sendDeleted, sendCursor } = useBoardSocket(
@@ -155,6 +158,7 @@ function JoinedBoard({
   return (
     <main className="relative h-dvh">
       <BoardCanvas
+        editable={online}
         onObjectCreated={sendCreated}
         onObjectChanged={sendChanged}
         onCursorMove={sendCursor}
@@ -179,8 +183,17 @@ function JoinedBoard({
         <PresenceBar />
       </div>
       <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
-        <Toolbar onDelete={deleteSelected} />
+        <Toolbar onDelete={deleteSelected} disabled={!online} />
       </div>
+      {(status === 'reconnecting' || status === 'error') && (
+        <p
+          role="status"
+          className="absolute left-1/2 top-24 z-30 flex -translate-x-1/2 items-center gap-2 rounded-lg border bg-card px-4 py-2 text-sm font-semibold shadow-md"
+        >
+          <WifiOff className="size-4 shrink-0" aria-hidden="true" />
+          Reconnecting. Changes are paused until you are back.
+        </p>
+      )}
       <Toasts toasts={toasts} />
     </main>
   )

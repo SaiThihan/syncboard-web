@@ -26,13 +26,20 @@ const buttonClass =
 
 // The tool buttons and Delete, with the keyboard shortcuts: V P R O A T pick a tool,
 // Delete removes the selected shape, and Escape goes back to the Select tool.
-export default function Toolbar({ onDelete }: { onDelete: () => void }) {
+export default function Toolbar({
+  onDelete,
+  disabled,
+}: {
+  onDelete: () => void
+  disabled: boolean // no connection: nothing can be changed
+}) {
   const tool = useToolStore((s) => s.tool)
   const selectedCount = useToolStore((s) => s.selectedIds.length)
   const setTool = useToolStore((s) => s.setTool)
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
+      if (disabled) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
       if (e.target instanceof HTMLInputElement) return // typing, for example a text note
 
@@ -51,7 +58,7 @@ export default function Toolbar({ onDelete }: { onDelete: () => void }) {
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [onDelete])
+  }, [onDelete, disabled])
 
   return (
     <div
@@ -64,6 +71,7 @@ export default function Toolbar({ onDelete }: { onDelete: () => void }) {
           key={t}
           type="button"
           onClick={() => setTool(t)}
+          disabled={disabled}
           aria-label={label}
           aria-pressed={tool === t}
           title={`${label}  ${key.toUpperCase()}`}
@@ -76,7 +84,7 @@ export default function Toolbar({ onDelete }: { onDelete: () => void }) {
       <button
         type="button"
         onClick={onDelete}
-        disabled={selectedCount === 0}
+        disabled={disabled || selectedCount === 0}
         aria-label={
           selectedCount > 1
             ? `Delete ${selectedCount} selected objects`

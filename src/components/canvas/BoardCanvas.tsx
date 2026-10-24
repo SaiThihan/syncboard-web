@@ -41,6 +41,8 @@ const DOTS =
   'radial-gradient(circle at 2px 2px, #C5CEDB 1.2px, transparent 1.7px)'
 
 interface Props {
+  // False while there is no connection: you can look and scroll, but nothing can be changed.
+  editable: boolean
   // Called when the user finishes a change, so the caller can tell the server.
   onObjectCreated?: (shape: NewObject) => void
   onObjectChanged?: (change: ObjectChange) => void
@@ -119,6 +121,7 @@ interface TextEditor {
 // The drawing area. It sends mouse events to the tool picked in toolStore and redraws
 // the board from boardStore. Mouse positions are converted to canvas coordinates first.
 export default function BoardCanvas({
+  editable,
   onObjectCreated,
   onObjectChanged,
   onCursorMove,
@@ -130,6 +133,12 @@ export default function BoardCanvas({
   const [selectTool] = useState(createSelectTool)
   const [drawTools] = useState(createDrawTools)
   const [textBox, setTextBox] = useState<TextEditor | null>(null)
+  // Typed words are not kept when the connection drops: close the text box at that moment.
+  const [wasEditable, setWasEditable] = useState(editable)
+  if (editable !== wasEditable) {
+    setWasEditable(editable)
+    if (!editable) setTextBox(null)
+  }
   // The shape whose words are being changed is not drawn, the text box shows them.
   const editingId = useRef<string | null>(null)
   const tool = useToolStore((s) => s.tool)
@@ -268,6 +277,7 @@ export default function BoardCanvas({
 
   function onPointerDown(e: React.PointerEvent<HTMLDivElement>) {
     if (e.target instanceof HTMLInputElement) return // a click inside the text box
+    if (!editable) return
     e.currentTarget.setPointerCapture(e.pointerId) // keep getting events outside the board
     const tool = useToolStore.getState().tool
     if (tool === 'text') return // the text box opens on release
@@ -282,6 +292,7 @@ export default function BoardCanvas({
     const tool = useToolStore.getState().tool
     const point = toBoardPoint(e)
     reportCursor(point)
+    if (!editable) return
     // With no button pressed nothing is being drawn or dragged, so there is nothing to redraw.
     if (tool === 'text' || e.buttons === 0) return
     if (tool === 'select') selectTool.pointerMove(point)
@@ -291,6 +302,13 @@ export default function BoardCanvas({
 
   function onPointerUp(e: React.PointerEvent<HTMLDivElement>) {
     if (e.target instanceof HTMLInputElement) return
+    if (!editable) {
+      // The connection dropped while something was being drawn or dragged: drop it.
+      selectTool.cancel()
+      for (const drawTool of Object.values(drawTools)) drawTool.cancel()
+      requestDraw()
+      return
+    }
     const tool = useToolStore.getState().tool
     if (tool === 'text') {
       setTextBox({ point: toBoardPoint(e), text: '', fontSize: FONT_SIZE })
@@ -309,7 +327,7 @@ export default function BoardCanvas({
   // A double click on text, with the Select tool, opens it for changing.
   function onDoubleClick(e: React.MouseEvent<HTMLDivElement>) {
     if (e.target instanceof HTMLInputElement) return
-    if (useToolStore.getState().tool !== 'select') return
+    if (!editable || useToolStore.getState().tool !== 'select') return
     const { objects, order } = useBoardStore.getState()
     const shape = findObjectAt(
       order.map((id) => objects[id]),
@@ -325,7 +343,7 @@ export default function BoardCanvas({
   }
 
   function onTextDone(text: string | null) {
-    if (text !== null && textBox) {
+    if (editable && text !== null && textBox) {
       if (textBox.id) {
         const change = commitTextEdit(textBox.id, text)
         if (change) onObjectChanged?.(change)
@@ -344,7 +362,7 @@ export default function BoardCanvas({
         role="img"
         aria-label="Whiteboard"
         style={{ backgroundImage: DOTS, backgroundSize: '24px 24px' }}
-        className="pointer-events-none absolute inset-0 block h-full w-full bg-[#F8FAFC]"
+        className={`pointer-events-none absolute inset-0 block h-full w-full bg-[#F8FAFC] ${editable ? '' : 'opacity-50'}`}
       />
       <div
         ref={scrollerRef}
@@ -359,9 +377,11 @@ export default function BoardCanvas({
           requestDraw()
         }}
         className={`absolute inset-0 overflow-auto ${
-          tool === 'select'
-            ? 'touch-pan-x touch-pan-y'
-            : 'cursor-crosshair touch-none'
+          !editable
+            ? 'cursor-not-allowed touch-pan-x touch-pan-y'
+            : tool === 'select'
+              ? 'touch-pan-x touch-pan-y'
+              : 'cursor-crosshair touch-none'
         }`}
       >
         <div
