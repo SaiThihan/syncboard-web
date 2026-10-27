@@ -15,7 +15,7 @@ import type {
 } from '@/types'
 
 // What to tell the user when the server refuses a change.
-function noticeFor(code: ErrorCode, what: string): string {
+export function noticeFor(code: ErrorCode, what: string): string {
   return code === 'BOARD_FULL'
     ? 'This board is full. Delete something to draw more.'
     : `Could not ${what}. Please try again.`

@@ -1,4 +1,4 @@
-import axios, { isAxiosError } from 'axios'
+import axios, { isAxiosError, isCancel } from 'axios'
 import type { BoardInfo, CreateBoardResponse, ErrorCode } from '@/types'
 
 export const API_URL: string =
@@ -32,7 +32,9 @@ const API_CODES: readonly string[] = [
 ] satisfies ErrorCode[]
 
 function toApiError(error: unknown): unknown {
-  if (!isAxiosError(error)) return error // a cancelled request stays as it is
+  // A cancelled request (the page was left) stays as it is. Axios makes it a kind of
+  // AxiosError, so it has to be checked first or it would look like a network failure.
+  if (isCancel(error) || !isAxiosError(error)) return error
   if (!error.response) return new ApiError('NETWORK_ERROR', error.message)
 
   const body: unknown = error.response.data
