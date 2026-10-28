@@ -96,3 +96,42 @@ export const around = (point: Point, reach = 8): Area => ({
   width: reach * 2,
   height: reach * 2,
 })
+
+// A switch for this page's connection to the API. `drop()` closes every open WebSocket and
+// refuses the fallback HTTP requests, so the app sees a dead network, until `restore()`.
+// Call it right after `person(...)`: it reloads the page (to install a tiny script that
+// remembers the WebSockets) and types the name in again.
+export async function controlNetwork(page: Page) {
+  const name = await page.getByLabel('Display name').inputValue()
+  await page.addInitScript(() => {
+    const sockets: WebSocket[] = []
+    const Original = window.WebSocket
+    window.WebSocket = class extends Original {
+      constructor(...args: ConstructorParameters<typeof WebSocket>) {
+        super(...args)
+        sockets.push(this)
+      }
+    }
+    ;(window as unknown as { __sockets: WebSocket[] }).__sockets = sockets
+  })
+  await page.reload()
+  await page.getByLabel('Display name').fill(name)
+
+  let down = false
+  await page.route('**/socket.io/**', (route) =>
+    down ? route.abort() : route.continue(),
+  )
+  return {
+    drop: async () => {
+      down = true
+      await page.evaluate(() =>
+        (window as unknown as { __sockets: WebSocket[] }).__sockets.forEach(
+          (socket) => socket.close(),
+        ),
+      )
+    },
+    restore: () => {
+      down = false
+    },
+  }
+}

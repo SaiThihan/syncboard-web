@@ -58,3 +58,22 @@ test('someone who opens a board link directly is asked for a name first', async 
   await expect(ana.getByRole('button', { name: /2 people/ })).toBeVisible()
   await context.close()
 })
+
+test('the name prompt on a direct link refuses an empty name', async ({
+  person,
+  browser,
+}) => {
+  const ana = await person('Ana Park')
+  const boardId = await createBoard(ana)
+  const context = await browser.newContext()
+  const ben = await context.newPage()
+
+  await ben.goto(`/board/${boardId}`)
+  await ben.getByRole('button', { name: 'Join board' }).click()
+
+  await expect(
+    ben.getByText('Enter a name so teammates know who is drawing.'),
+  ).toBeVisible()
+  await expect(ben.getByText('Connected')).toBeHidden()
+  await context.close()
+})
