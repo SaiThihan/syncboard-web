@@ -21,12 +21,8 @@ import {
   createPenTool,
   createRectTool,
 } from '@/canvas/shapeTools'
-import {
-  commitText,
-  commitTextEdit,
-  FONT_SIZE,
-  TEXT_MAX_LENGTH,
-} from '@/canvas/textTool'
+import { commitText, commitTextEdit, FONT_SIZE } from '@/canvas/textTool'
+import TextBox from '@/components/canvas/TextBox'
 import { throttle } from '@/lib/throttle'
 import { useBoardStore } from '@/stores/boardStore'
 import { useToolStore } from '@/stores/toolStore'
@@ -66,48 +62,6 @@ type DrawTools = ReturnType<typeof createDrawTools>
 function drawToolFor(tools: DrawTools) {
   const tool = useToolStore.getState().tool
   return tool === 'select' || tool === 'text' ? undefined : tools[tool]
-}
-
-// A text box over the canvas, because a canvas cannot receive typing.
-// Enter or clicking away confirms the text, Escape cancels.
-function TextBox({
-  point,
-  initial,
-  fontSize,
-  onDone,
-}: {
-  point: Point
-  initial: string
-  fontSize: number
-  onDone: (text: string | null) => void
-}) {
-  const finished = useRef(false)
-  const finish = (text: string | null) => {
-    if (finished.current) return
-    finished.current = true
-    onDone(text)
-  }
-  return (
-    <input
-      autoFocus
-      aria-label="Text"
-      defaultValue={initial}
-      maxLength={TEXT_MAX_LENGTH}
-      onFocus={(e) => e.currentTarget.select()}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') finish(e.currentTarget.value)
-        if (e.key === 'Escape') finish(null)
-      }}
-      onBlur={(e) => finish(e.currentTarget.value)}
-      className="absolute m-0 w-60 border border-primary bg-transparent p-0 font-sans outline-none"
-      style={{
-        left: point.x,
-        top: point.y,
-        fontSize,
-        lineHeight: 1,
-      }}
-    />
-  )
 }
 
 // A text box that is open: for new text (no id), or for changing a text shape.

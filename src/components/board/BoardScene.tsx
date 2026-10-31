@@ -38,6 +38,9 @@ const TEAMMATES: Teammate[] = [
   },
 ]
 
+// The start of an animation, as the CSS variable the animation reads.
+const delay = (seconds: string) => ({ '--d': seconds }) as React.CSSProperties
+
 const INK = '#1B2230'
 const CARD_STROKE = 'rgba(27,34,48,.18)'
 
@@ -107,10 +110,7 @@ export default function BoardScene({ className }: { className?: string }) {
         </defs>
         <rect width="760" height="560" fill="url(#scene-dots)" />
 
-        <g
-          className="scene-pop"
-          style={{ '--d': '.1s' } as React.CSSProperties}
-        >
+        <g className="scene-pop" style={delay('.1s')}>
           <text className="scene-title" x="50" y="62">
             Launch plan
           </text>
@@ -118,7 +118,7 @@ export default function BoardScene({ className }: { className?: string }) {
         <path
           className="scene-pen scene-draw"
           pathLength={1}
-          style={{ '--d': '.5s' } as React.CSSProperties}
+          style={delay('.5s')}
           d="M52 78 C130 90 210 70 322 82"
           stroke="#2F5BEA"
           strokeWidth="4"
@@ -126,16 +126,13 @@ export default function BoardScene({ className }: { className?: string }) {
         <path
           className="scene-pen scene-draw"
           pathLength={1}
-          style={{ '--d': '1.9s' } as React.CSSProperties}
+          style={delay('1.9s')}
           d="M690 46 L705 14 L720 46 L684 26 L726 26 Z"
           stroke="#2E7D52"
           strokeWidth="3.5"
         />
 
-        <g
-          className="scene-pop"
-          style={{ '--d': '.7s' } as React.CSSProperties}
-        >
+        <g className="scene-pop" style={delay('.7s')}>
           <g transform="rotate(-2 145 156)">
             <rect
               x="50"
@@ -154,7 +151,7 @@ export default function BoardScene({ className }: { className?: string }) {
             </text>
           </g>
         </g>
-        <g className="scene-pop" style={{ '--d': '1s' } as React.CSSProperties}>
+        <g className="scene-pop" style={delay('1s')}>
           <g transform="rotate(1.5 380 141)">
             <rect
               x="285"
@@ -173,10 +170,7 @@ export default function BoardScene({ className }: { className?: string }) {
             </text>
           </g>
         </g>
-        <g
-          className="scene-pop"
-          style={{ '--d': '1.3s' } as React.CSSProperties}
-        >
+        <g className="scene-pop" style={delay('1.3s')}>
           <g transform="rotate(-1 615 166)">
             <rect
               x="520"
@@ -196,10 +190,7 @@ export default function BoardScene({ className }: { className?: string }) {
           </g>
         </g>
 
-        <g
-          className="scene-pop"
-          style={{ '--d': '1.15s' } as React.CSSProperties}
-        >
+        <g className="scene-pop" style={delay('1.15s')}>
           <path
             d="M242 156 Q262 138 283 142"
             fill="none"
@@ -209,10 +200,7 @@ export default function BoardScene({ className }: { className?: string }) {
             markerEnd="url(#scene-arrow)"
           />
         </g>
-        <g
-          className="scene-pop"
-          style={{ '--d': '1.45s' } as React.CSSProperties}
-        >
+        <g className="scene-pop" style={delay('1.45s')}>
           <path
             d="M477 141 Q498 136 518 166"
             fill="none"
@@ -225,13 +213,13 @@ export default function BoardScene({ className }: { className?: string }) {
         <path
           className="scene-pen scene-draw"
           pathLength={1}
-          style={{ '--d': '1.7s' } as React.CSSProperties}
+          style={delay('1.7s')}
           d="M512 118 C560 82 700 90 724 150 C738 206 640 238 560 230 C500 222 492 150 538 110"
           stroke="#B33A4C"
           strokeWidth="4"
         />
 
-        <g className="scene-pop" style={{ '--d': '2s' } as React.CSSProperties}>
+        <g className="scene-pop" style={delay('2s')}>
           <text className="scene-note" x="60" y="296">
             Ship it on Friday
           </text>
@@ -239,16 +227,13 @@ export default function BoardScene({ className }: { className?: string }) {
         <path
           className="scene-pen scene-draw"
           pathLength={1}
-          style={{ '--d': '2.4s' } as React.CSSProperties}
+          style={delay('2.4s')}
           d="M60 310 C150 322 260 300 362 312"
           stroke="#8A5A00"
           strokeWidth="4"
         />
 
-        <g
-          className="scene-pop"
-          style={{ '--d': '2.2s' } as React.CSSProperties}
-        >
+        <g className="scene-pop" style={delay('2.2s')}>
           <rect
             x="60"
             y="352"
@@ -273,10 +258,7 @@ export default function BoardScene({ className }: { className?: string }) {
             Priya: I will review
           </text>
         </g>
-        <g
-          className="scene-pop"
-          style={{ '--d': '2.5s' } as React.CSSProperties}
-        >
+        <g className="scene-pop" style={delay('2.5s')}>
           <path
             d="M312 412 Q352 400 396 398"
             fill="none"
@@ -286,10 +268,7 @@ export default function BoardScene({ className }: { className?: string }) {
             markerEnd="url(#scene-arrow)"
           />
         </g>
-        <g
-          className="scene-pop"
-          style={{ '--d': '2.7s' } as React.CSSProperties}
-        >
+        <g className="scene-pop" style={delay('2.7s')}>
           <ellipse
             cx="470"
             cy="396"
@@ -308,10 +287,7 @@ export default function BoardScene({ className }: { className?: string }) {
             Risk
           </text>
         </g>
-        <g
-          className="scene-pop"
-          style={{ '--d': '2.9s' } as React.CSSProperties}
-        >
+        <g className="scene-pop" style={delay('2.9s')}>
           <text
             className="scene-card-title"
             x="568"
@@ -324,7 +300,7 @@ export default function BoardScene({ className }: { className?: string }) {
         <path
           className="scene-pen scene-draw"
           pathLength={1}
-          style={{ '--d': '3.2s' } as React.CSSProperties}
+          style={delay('3.2s')}
           d="M566 416 C610 424 650 412 700 420"
           stroke="#19717F"
           strokeWidth="3.5"
@@ -332,7 +308,7 @@ export default function BoardScene({ className }: { className?: string }) {
         <path
           className="scene-pen scene-draw"
           pathLength={1}
-          style={{ '--d': '3.4s' } as React.CSSProperties}
+          style={delay('3.4s')}
           d="M540 500 q20 -24 40 0 t40 0 t40 0 t40 0"
           stroke="#19717F"
           strokeWidth="4"

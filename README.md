@@ -1,32 +1,49 @@
-# React + TypeScript + Vite
+# SyncBoard Web
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The browser app for SyncBoard, a real-time collaborative whiteboard. React, TypeScript, Vite, Tailwind CSS, shadcn/ui, Zustand, Socket.IO and the HTML canvas. No accounts: your name is saved for the current browser tab only.
 
-Currently, two official plugins are available:
+The server is a separate repository, `syncboard-api`. Start it first.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run it
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev            # http://localhost:5173
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+| Variable       | Default                 | Meaning                  |
+| -------------- | ----------------------- | ------------------------ |
+| `VITE_API_URL` | `http://localhost:3000` | Where the API is running |
+
+Copy `.env.example` to `.env` to change it.
+
+## Scripts
+
+| Command            | What it does                             |
+| ------------------ | ---------------------------------------- |
+| `npm run build`    | Type-check and build to `dist/`          |
+| `npm run lint`     | ESLint                                   |
+| `npm run format`   | Prettier                                 |
+| `npm test`         | Unit tests (Vitest), in `tests/`         |
+| `npm run test:e2e` | End-to-end tests (Playwright), in `e2e/` |
+
+The end-to-end tests drive real browsers, with two windows for two people. They need the API running (`npm run start:dev` in `syncboard-api`) and, the first time, `npx playwright install chromium`. They start this app on port 5173 by themselves.
+
+## What it does
+
+Create a board and share its id or link. Everyone on it draws with a pen, rectangles, circles, arrows and text. They can move, resize, select several shapes and delete, and they see each other's changes and mouse pointers as they happen. If the connection drops, editing pauses until it is back, and the board catches up on what was missed.
+
+## Layout
+
+```
+src/
+  pages/        Home (create or join) and Board
+  components/   board (toolbar, share bar), canvas, presence, ui
+  canvas/       drawing, hit testing, resize handles and the tools
+  stores/       Zustand: board, presence, session, tool
+  hooks/        useBoardSocket (joins the board and syncs it), useToasts
+  lib/          API client, socket, identity, throttle
+  types/        contracts shared with the API, copied by hand
+```
+
+Shapes are drawn on one canvas, redrawn at most once per screen frame. Your own changes show at once and are rolled back with a short notice if the server refuses them.
